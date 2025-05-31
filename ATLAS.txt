@@ -1,0 +1,88 @@
+// merge all minor bkgs
+      V = (TH1F*)Wplusenu[fIter->first]->Clone();
+      V->Add(Wplusmunu[fIter->first]);
+      V->Add(Wplustaunu[fIter->first]);
+      V->Add(Wminusenu[fIter->first]);
+      V->Add(Wminusmunu[fIter->first]);
+      V->Add(Wminustaunu[fIter->first]);
+      V->Add(Ztautau[fIter->first]);
+      V->Add(Zee[fIter->first]);
+      V->Add(Zmumu[fIter->first]);
+      V->Add(single_top_schan[fIter->first]);
+      V->Add(single_antitop_schan[fIter->first]);
+      V->Add(single_top_tchan[fIter->first]);
+      V->Add(single_antitop_tchan[fIter->first]);
+      V->Add(single_top_wtchan[fIter->first]);
+      V->Add(single_antitop_wtchan[fIter->first]);
+      V->Add(ttbar_lep[fIter->first]);
+      V->Add(WplvWmqq[fIter->first]); // WW
+      V->Add(WpqqWmlv[fIter->first]); // WW
+      V->Add(lllv[fIter->first]);  // // W->lv Z->ll
+      V->Add(lvvv[fIter->first]); // W->lv Z->vv
+      V->Add(WqqZll[fIter->first]); // W->qq Z->ll
+      V->Add(WlvZqq[fIter->first]);  // W->lv Z->qq
+      V->SetFillColor(kBlue-6);
+      V->SetLineWidth(0);
+
+      // only ZZ
+      Z_Z = (TH1F*)llll[fIter->first]->Clone(); // Z->ll Z->ll
+      Z_Z->Add(ZqqZll[fIter->first]); // Z->qq Z->ll
+      Z_Z->Add(llvv[fIter->first]); // Z->ll Z->vv
+      Z_Z->SetFillColor(kAzure+8);
+      Z_Z->SetLineWidth(0);
+      Z_Z->Scale(1.3); // loop-induced gluon–gluon gg->ZZ is not included in the current MCs
+
+      Higgs = (TH1F*)ggH125_ZZ4lep[fIter->first]->Clone();
+      Higgs->Add(ZH125_ZZ4lep[fIter->first]);
+      Higgs->Add(WH125_ZZ4lep[fIter->first]);
+      Higgs->Add(VBFH125_ZZ4lep[fIter->first]);
+      Higgs->SetFillColor(kRed);
+      Higgs->SetLineWidth(0);
+if(option.find("HZZAnalysis") != option.npos){
+      stack->Add(V);
+      stack->Add(Z_Z);
+      stack->Add(Higgs);
+
+      histstack = (TH1F*)V->Clone();
+      histstack->Add(Higgs);
+      histstack->Add(Z_Z);
+    }
+ // calculate normalized signals
+    TH1F* Higgs_normsig = new TH1F();
+    if(option.find("HZZAnalysis") != option.npos){
+      Higgs_normsig = (TH1F*)ggH125_ZZ4lep[fIter->first]->Clone();
+      Higgs_normsig->Add(ZH125_ZZ4lep[fIter->first]);
+      Higgs_normsig->Add(WH125_ZZ4lep[fIter->first]);
+      Higgs_normsig->Add(VBFH125_ZZ4lep[fIter->first]);
+      Higgs_normsig->Scale(histstack->Integral()/Higgs_normsig->Integral());
+      Higgs_normsig->SetLineColor(kRed);
+      Higgs_normsig->SetFillStyle(0);
+      Higgs_normsig->SetLineStyle(2);
+      Higgs_normsig->SetFillColor(2);
+      Higgs_normsig->SetLineWidth(2);
+    }
+ // ------------------------------------------------------- //    
+    if(option.find("HZZAnalysis") != option.npos){
+      leg-> AddEntry(data[fIter->first] , "Data" ,"lep");
+      leg-> AddEntry(Higgs , "Higgs", "f");
+      leg-> AddEntry(Z_Z , "ZZ", "f");
+      leg-> AddEntry(V,  "Other", "f");
+      leg-> AddEntry(histstack,"Stat. unc.","f");
+      if(NORMSIG) leg-> AddEntry(Higgs_normsig, "Higgs_{norm}" ,"l");
+      
+      if(YIELDS){
+	cout << "Yields:" << "Data: " << data[fIter->first]->Integral() <<
+	  ",  Higgs: " << Higgs->Integral()  <<
+	  ",  ZZ: " << Z_Z->Integral()  <<
+	  ",  Other: " << V->Integral()  <<
+	  ",  Total pred.: "<< V->Integral() + Z_Z->Integral()  <<
+	  endl;
+      }
+    }
+if(option.find("HZZAnalysis") != option.npos)
+    {
+     if(fIter->first.find("mLL1") != option.npos) fIter->second->SetMaximum(150);
+     if(fIter->first.find("mLL2") != option.npos) fIter->second->SetMaximum(100);
+     if(fIter->first.find("mass_four") != option.npos) fIter->second->SetMaximum(35);
+     if(fIter->first.find("mass_ext") != option.npos) fIter->second->SetMaximum(40);
+    } Explain what this code does, and do a similar implementation using pyROOT
