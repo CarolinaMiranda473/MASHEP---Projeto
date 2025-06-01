@@ -51,6 +51,60 @@ def Log_Likelihood_Func(mu, signal_exp, bkg_exp, data):
 
     return total_ll
 
+def compute_sigma_intervals(mu_values, log_likelihood):
+    import numpy as np
+
+    # Convert to numpy arrays
+    mu_values = np.array(mu_values)
+    log_likelihood = np.array(log_likelihood)
+
+    # Get the minimum value and subtract to find ΔlogL
+    minNLogValue = np.max(log_likelihood)  # Note: log-likelihood is usually negative
+    Delta_neglogL = minNLogValue - log_likelihood
+
+    # Confidence level thresholds (ΔlogL)
+    CL_thresholds = {
+        "1σ": 0.5,
+        "2σ": 2.0,
+        "3σ": 4.5
+    }
+
+    intervals = {}
+
+    for label, threshold in CL_thresholds.items():
+        lower_mu = upper_mu = None
+
+        for i in range(1, len(mu_values)):
+            # Look for crossing from below to above (left to right)
+            if Delta_neglogL[i-1] < threshold <= Delta_neglogL[i]:
+                x0, x1 = mu_values[i-1], mu_values[i]
+                y0, y1 = Delta_neglogL[i-1], Delta_neglogL[i]
+                lower_mu = x0 + (threshold - y0) * (x1 - x0) / (y1 - y0)
+
+            # Look for crossing from above to below (right to left)
+            if Delta_neglogL[i-1] > threshold >= Delta_neglogL[i]:
+                x0, x1 = mu_values[i-1], mu_values[i]
+                y0, y1 = Delta_neglogL[i-1], Delta_neglogL[i]
+                upper_mu = x0 + (threshold - y0) * (x1 - x0) / (y1 - y0)
+
+        if lower_mu is not None and upper_mu is not None:
+            if upper_mu < lower_mu:
+                lower_mu, upper_mu = upper_mu, lower_mu
+
+            intervals[label] = {
+                "lower": lower_mu,
+                "upper": upper_mu,
+                "half_width": (upper_mu - lower_mu) / 2
+            }
+        else:
+            intervals[label] = {
+                "lower": None,
+                "upper": None,
+                "half_width": None
+            }
+
+    return intervals
+
 ## --------------------------------IMPORTING FILES---------------------------------------------------
 ##Reading all the files
 #We have joined all background types into only one Background.root file, with all the needed histograms.
@@ -441,6 +495,107 @@ c1.Clear()
 
 
 ## -----------------------------------------PERFORMING MAXIMUM LIKELIHOOD FITS ------------------------------------
+
+# Initialize
+mu_list = np.arange(0., 5.5, 0.01)
+log_likelihood = []
+graph_LL = ROOT.TGraph()
+
+# Fill log-likelihood values and TGraph
+for i, mu in enumerate(mu_list):
+    ll_value = Log_Likelihood_Func(mu, sig_hist_SEL, bkg_hist_SEL, data_hist_SEL)
+    log_likelihood.append(ll_value)
+    graph_LL.SetPoint(i, mu, ll_value)
+
+i_max = np.argmax(np.array(log_likelihood))
+mu_hat = mu_list[i_max]
+
+mu_intervals = compute_sigma_intervals(mu_list, log_likelihood)
+
+print("$\hat{\mu}$ = ", mu_hat)
+for sigma_label, vals in mu_intervals.items():
+    print(f"{sigma_label} interval: [{vals['lower']:.3f}, {vals['upper']:.3f}], "
+          f"uncertainty ±{vals['half_width']:.3f}")
+
+# Optional: Draw the graph
+c3 = ROOT.TCanvas("c", "Log Likelihood vs #mu", 800, 600)
+graph_LL.SetTitle("Log-Likelihood vs. Signal Strength #mu")
+graph_LL.GetXaxis().SetTitle("#mu")
+graph_LL.GetYaxis().SetTitle("Log-Likelihood")
+graph_LL.SetLineColor(ROOT.kBlue + 1)
+graph_LL.SetLineWidth(2)
+graph_LL.Draw("AL")  # 'A' to draw axes, 'L' for line
+
+# Draw vertical line at mu_hat
+y_min = graph_LL.GetYaxis().GetXmin()
+y_max = graph_LL.GetYaxis().GetXmax()
+line = ROOT.TLine(mu_hat, y_min, mu_hat, y_max)
+line.SetLineColor(ROOT.kMagenta)
+line.SetLineStyle(2)  # dashed line
+line.SetLineWidth(2)
+line.Draw("same")
+
+# Optional: Add legend or label for mu_hat
+label = ROOT.TLatex(mu_hat, y_max - 0.2 * (y_max - y_min), f"#hat{{#mu}} = {mu_hat:.2f}")
+label.SetTextColor(ROOT.kMagenta+3)
+label.SetTextSize(0.04)
+label.SetTextAlign(21)
+label.Draw()
+
+# Define color for 1σ region
+color_1sigma = ROOT.kGreen + 1
+
+# Extract 1σ interval
+vals = mu_intervals["1σ"]
+lower = vals["lower"]
+upper = vals["upper"]
+
+# Safety check
+if lower is not None and upper is not None:
+    # Draw vertical lines
+    line_lower = ROOT.TLine(lower, y_min, lower, y_max)
+    line_lower.SetLineColor(color_1sigma)
+    line_lower.SetLineStyle(2)
+    line_lower.SetLineWidth(1)
+    line_lower.Draw("same")
+
+    line_upper = ROOT.TLine(upper, y_min, upper, y_max)
+    line_upper.SetLineColor(color_1sigma)
+    line_upper.SetLineStyle(2)
+    line_upper.SetLineWidth(1)
+    line_upper.Draw("same")
+
+    # Draw shaded region
+    box = ROOT.TBox(lower, y_min, upper, y_max)
+    box.SetFillColorAlpha(color_1sigma, 0.15)
+    box.Draw("same")
+
+    # Add label
+    label_text = "68% CL (1#sigma interval)"
+    label_x = upper * 1.1
+    label_y = y_max - 0.4 * (y_max - y_min)
+
+    text = ROOT.TLatex(label_x, label_y, label_text)
+    text.SetTextAlign(21)  # center alignment
+    text.SetTextColor(color_1sigma + 3)
+    text.SetTextSize(0.035)
+    text.Draw("same")
+
+
+c3.Update()
+
+c3.Print("LogLikelihood_vs_mu.pdf")
+
+##For somo reason, writing #mu yields a proprotional sign?? LOOK INTO THIS!!
+# Happens only when printing into pdf, but, otherwise, looses lots of quality...
+
+
+
+
+
+
+
+
 
 
 
